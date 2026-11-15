@@ -1,0 +1,388 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>FreeShow Lyric Formatter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: tool bench — paste + cleaned lines on the left, projector-style slide previews on the right */
+:root {
+  --bg: #f3f4f7;
+  --panel: #ffffff;
+  --fg: #1a1d29;
+  --muted: #5d6275;
+  --line: #dcdfe8;
+  --accent: #3b4fd8;
+  --accent-ink: #ffffff;
+  --stage: #10121c;
+  --stage-fg: #f5f6fb;
+  --warn: #b25b00;
+  --warn-bg: #fff1dd;
+  --ok: #1f7a4d;
+  --font-display: "Lexend", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d0f17; --panel: #161925; --fg: #e8eaf2; --muted: #9aa0b6; --line: #2a2e3e;
+    --accent: #8796ff; --accent-ink: #0d0f17; --stage: #05060b; --stage-fg: #f5f6fb;
+    --warn: #ffb35c; --warn-bg: #3a2810; --ok: #5fd39a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d0f17; --panel: #161925; --fg: #e8eaf2; --muted: #9aa0b6; --line: #2a2e3e;
+  --accent: #8796ff; --accent-ink: #0d0f17; --stage: #05060b; --stage-fg: #f5f6fb;
+  --warn: #ffb35c; --warn-bg: #3a2810; --ok: #5fd39a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.7rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--muted); margin: 0; }
+.hint { font-size: 0.85rem; color: var(--muted); margin: 0; }
+textarea {
+  width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); color: var(--fg); padding: 12px;
+  font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.55;
+}
+#raw { min-height: 200px; }
+#cleaned { min-height: 320px; }
+textarea:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.controls label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+select { font: inherit; font-size: 0.9rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+button { font: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; border-radius: 7px; padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.stats { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.slide { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.slide-meta { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.slide-meta .sec { text-transform: uppercase; letter-spacing: 0.06em; }
+.screen {
+  aspect-ratio: 16 / 9; max-width: 100%; background: var(--stage); color: var(--stage-fg);
+  border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 10px 14px; gap: 2px; overflow: hidden;
+  font-family: var(--font-display); font-weight: 500; font-size: 0.92rem; line-height: 1.3;
+}
+.screen span { display: block; overflow-wrap: anywhere; }
+.chip { font-family: var(--font-body); font-size: 0.7rem; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: var(--warn-bg); color: var(--warn); }
+.empty { color: var(--muted); font-size: 0.9rem; padding: 20px 4px; }
+#out { min-height: 160px; }
+.toast { font-size: 0.85rem; color: var(--ok); min-height: 1.2em; }
+@media (prefers-reduced-motion: no-preference) { button { transition: border-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>FreeShow Lyric Formatter</h1>
+      <p class="sub">Paste lyrics from any site. Clutter and section labels come out, run-on text gets split into lines, and each section is divided into balanced slides ready for FreeShow.</p>
+    </div>
+    <div class="controls">
+      <label for="maxLines">Max lines per slide
+        <select id="maxLines"><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option></select>
+      </label>
+      <label for="unwrap"><input type="checkbox" id="unwrap" checked> Split run-on lines</label>
+      <label for="longTwo" title="Lines over 42 characters wrap on most projectors, so they take two lines of space"><input type="checkbox" id="longTwo"> Count long lines as 2</label>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <div class="panel-head">
+          <p class="label">1 · Raw paste</p>
+          <div class="btns"><button id="clearBtn" type="button">Clear</button></div>
+        </div>
+        <textarea id="raw" spellcheck="false" aria-label="Raw lyrics"></textarea>
+        <p class="hint">The example is the public-domain hymn "Holy, Holy, Holy" with typical lyric-site clutter mixed in. Replace it with your own paste.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="label">2 · Cleaned lines (editable)</p>
+          <span class="stats" id="lineStats"></span>
+        </div>
+        <textarea id="cleaned" spellcheck="true" aria-label="Cleaned lyric lines"></textarea>
+        <p class="hint">One lyric line per row. [Section] rows group lines and never reach the slides. Empty rows, invisible characters and symbol-only rows never count toward a slide's lines. Type --- on its own row to force a slide break. Editing the raw paste again will replace your edits here.</p>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <div class="panel-head">
+          <p class="label">3 · Slides</p>
+          <span class="stats" id="slideStats"></span>
+        </div>
+        <div class="slides" id="slides"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="label">4 · Copy for FreeShow</p>
+          <div class="controls">
+            <label for="fmt">Format
+              <select id="fmt">
+                <option value="plain">Blocks (blank line between slides)</option>
+                <option value="numbered">Numbered (SLIDE 1, SLIDE 2…)</option>
+              </select>
+            </label>
+            <label for="labels"><input type="checkbox" id="labels"> Keep [Section] labels</label>
+          </div>
+        </div>
+        <textarea id="out" readonly spellcheck="false" aria-label="FreeShow output"></textarea>
+        <div class="panel-head">
+          <span class="toast" id="toast" role="status"></span>
+          <button class="primary" id="copyBtn" type="button">Copy slides</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const SAMPLE = `Holy, Holy, Holy Lyrics
+3 Contributors
+[Verse 1] Holy, holy, holy! Lord God Almighty! Early in the morning our song shall rise to Thee; Holy, holy, holy! merciful and mighty! God in three Persons, blessed Trinity!
+[Verse 2] Holy, holy, holy! All the saints adore Thee, Casting down their golden crowns around the glassy sea; Cherubim and seraphim falling down before Thee, Which wert, and art, and evermore shalt be. You might also like Some Other Song Some Artist Another Hymn Another Artist
+[Instrumental]
+[Verse 3] Holy, holy, holy! Though the darkness hide Thee, Though the eye of sinful man Thy glory may not see; Only Thou art holy; there is none beside Thee, Perfect in power, in love, and purity.
+[Verse 4] Holy, holy, holy! Lord God Almighty! All Thy works shall praise Thy Name, in earth, and sky, and sea; Holy, holy, holy! merciful and mighty! God in three Persons, blessed Trinity!12Embed`;
+
+// Capitalised words that usually sit mid-line in worship lyrics, so they don't start a new line
+const KEEP = new Set(["i","i'm","i'll","i've","i'd","you","you're","your","yours","you'll","you've","thou","thee","thy","thine","he","his","him","god","lord","jesus","christ","father","spirit","almighty","king","savior","saviour","lamb","messiah","yahweh","jehovah","name","persons","trinity","glory"]);
+
+const $ = id => document.getElementById(id);
+const raw = $("raw"), cleaned = $("cleaned"), out = $("out");
+
+function norm(w) { return w.toLowerCase().replace(/[^a-z']/g, ""); }
+
+function splitRunOn(line) {
+  const toks = line.split(" ");
+  const lines = []; let cur = [];
+  toks.forEach((t, i) => {
+    if (cur.length >= 4) {
+      const prev = cur[cur.length - 1];
+      const startsCap = /^[A-Z]/.test(t);
+      const n = norm(t);
+      const sameAsPrev = n === norm(prev);
+      const prevStop = /[!?.;]$/.test(prev);
+      let split = startsCap && !sameAsPrev && (!KEEP.has(n) || prevStop);
+      // "Lord You're\u2026" style: a pronoun right after a bare title word usually opens a new line
+      if (startsCap && /^(you|you're|your)$/.test(n) && /^(lord|god|father|jesus|king)$/.test(norm(prev)) && !/[,;:]$/.test(prev)) split = true;
+      if (split) { lines.push(cur.join(" ")); cur = []; }
+    }
+    cur.push(t);
+  });
+  if (cur.length) lines.push(cur.join(" "));
+  return lines;
+}
+
+function tidy(l) {
+  l = l.replace(/\s+/g, " ").trim()
+       .replace(/\s+([,.;:!?])/g, "$1")
+       .replace(/([,;:])(?=[A-Za-z])/g, "$1 ")
+       .replace(/\bi\b(?=[\s,'.!?]|$)/g, "I")
+       .replace(/\bi'(m|ll|ve|d)\b/g, "I'$1")
+       .replace(/[ ]?\d*Embed$/, "");
+  if (l) l = l.charAt(0).toUpperCase() + l.slice(1);
+  return l;
+}
+
+const CLUTTER_LINE = [
+  /^\d+\s*contributors?\b.*$/i, /^translations?$/i, /^embed$/i, /^read more$/i,
+  /^[^\[\]]{1,80}\slyrics$/i, /^get tickets/i, /^see .* live/i, /^\d+$/
+];
+
+// Invisible characters lyric sites hide in "empty" rows: zero-width spaces, joiners, soft hyphens, BOMs, direction marks
+const INVISIBLE = /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\uFEFF\u00AD\u180E]/g;
+function sanitize(text) {
+  return text.replace(/\r\n?/g, "\n").replace(INVISIBLE, "").replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000\t]/g, " ");
+}
+// A row only counts as a lyric line if it holds at least one letter or digit
+function isLyric(line) { return /[\p{L}\p{N}]/u.test(line); }
+
+function clean(text, unwrap) {
+  text = sanitize(text);
+  // Blank rows only mean "new section" when the paste has no [Section] tags
+  // and the blanks actually group lines (not a site that double-spaces every line)
+  const hasTags = /\[[^\]\n]{1,40}\]/.test(text);
+  const blocks = text.split(/\n\s*\n/).map(b => b.split("\n").filter(l => isLyric(l)).length).filter(n => n > 0);
+  const avgBlock = blocks.length ? blocks.reduce((a, b) => a + b, 0) / blocks.length : 0;
+  const blanksAreBreaks = !hasTags && avgBlock >= 2;
+  if (!blanksAreBreaks) text = text.replace(/\n\s*\n/g, "\n");
+  text = text
+    .replace(/\d*Embed\b/g, "")
+    .replace(/You might also like[\s\S]*?(?=\[|\n\s*\n|$)/gi, "")
+    .replace(/See [^\n\[]{1,80} Live[^\n\[]*/gi, "")
+    .replace(/Get tickets as low as \$?\d+/gi, "")
+    .replace(/\s*(\[[^\]\n]{1,40}\])\s*/g, "\n\n$1\n");
+  const outLines = [];
+  let pendingTag = null, sectionHasLines = false, needBlank = false;
+  for (let line of text.split("\n")) {
+    line = line.replace(/\s+/g, " ").trim();
+    if (!line) { if (sectionHasLines) needBlank = true; continue; }
+    if (CLUTTER_LINE.some(r => r.test(line))) continue;
+    const tag = line.match(/^\[([^\]]+)\]$/);
+    if (tag) {
+      pendingTag = tag[1].split(":")[0].trim();
+      sectionHasLines = false; needBlank = false;
+      continue;
+    }
+    const pieces = unwrap && line.length > 70 ? splitRunOn(line) : [line];
+    for (const p of pieces) {
+      const t = tidy(p);
+      if (!t || !isLyric(t)) continue;
+      if (pendingTag) { if (outLines.length) outLines.push(""); outLines.push(`[${pendingTag}]`); pendingTag = null; }
+      else if (needBlank && outLines.length) outLines.push("---");
+      needBlank = false;
+      outLines.push(t); sectionHasLines = true;
+    }
+  }
+  return outLines.join("\n");
+}
+
+function parseSections(text) {
+  const sections = []; let cur = null;
+  const ensure = name => { cur = { name, stanzas: [[]] }; sections.push(cur); };
+  for (let line of sanitize(text).split("\n")) {
+    line = line.replace(/\s+/g, " ").trim();
+    const tag = line.match(/^\[([^\]]+)\]$/);
+    if (tag) { ensure(tag[1].trim()); continue; }
+    if (/^-{3,}$/.test(line)) { if (cur && cur.stanzas[cur.stanzas.length - 1].length) cur.stanzas.push([]); continue; }
+    if (!line) continue; // empty or whitespace-only rows never count and never split a slide
+    if (!isLyric(line)) continue; // stray "...", dashes or symbols never take up a line
+    if (!cur) ensure("");
+    cur.stanzas[cur.stanzas.length - 1].push(line);
+  }
+  sections.forEach(s => s.stanzas = s.stanzas.filter(st => st.length));
+  return sections.filter(s => s.stanzas.length);
+}
+
+const LONG = 42; // characters before a line usually wraps on a 16:9 projector
+
+// How good is it to end a slide after line i-1 and start the next at line i?
+function breakCost(lines, i, slideStart) {
+  const prev = lines[i - 1], next = lines[i];
+  let c;
+  if (/[.!?;:]["')\]]*$/.test(prev)) c = 0;          // sentence ends: ideal break
+  else if (/[,\u2014\u2013-]["')\]]*$/.test(prev)) c = 1; // clause ends: fine
+  else c = 2.5;                                          // no punctuation: phrase may run on
+  if (/^[a-z]/.test(next)) c += 2;                       // next line continues a sentence
+  return c;
+}
+
+// Dynamic split: fewest slides first, then balanced sizes, then natural break points
+function chunk(lines, max, longAsTwo) {
+  const n = lines.length; if (!n) return [];
+  const w = lines.map(l => (longAsTwo && l.length > LONG ? Math.min(2, max) : 1));
+  const total = w.reduce((a, b) => a + b, 0);
+  const target = total / Math.ceil(total / max);
+  const best = new Array(n + 1).fill(Infinity), from = new Array(n + 1).fill(-1);
+  best[0] = 0;
+  for (let i = 1; i <= n; i++) {
+    let weight = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      weight += w[j];
+      if (weight > max && i - j > 1) break;
+      let cost = best[j] + 10 + (weight - target) ** 2 + (i < n ? breakCost(lines, i, j) : 0);
+      // A repeat starting right after a full slide is a natural place to cut (choruses that sing twice)
+      if (i < n && weight >= target - 0.5 && (lines[i] === lines[0] || lines[i] === lines[j])) cost -= 2;
+      if (cost < best[i]) { best[i] = cost; from[i] = j; }
+    }
+  }
+  const res = [];
+  for (let i = n; i > 0; i = from[i]) res.unshift(lines.slice(from[i], i));
+  return res;
+}
+
+function buildSlides() {
+  const max = +$("maxLines").value, longAsTwo = $("longTwo").checked;
+  const slides = [];
+  for (const s of parseSections(cleaned.value))
+    for (const st of s.stanzas)
+      for (const c of chunk(st, max, longAsTwo)) slides.push({ section: s.name, lines: c });
+  return slides;
+}
+
+function render() {
+  const slides = buildSlides();
+  const box = $("slides"); box.textContent = "";
+  const lineCount = slides.reduce((a, s) => a + s.lines.length, 0);
+  $("lineStats").textContent = `${lineCount} lines`;
+  $("slideStats").textContent = `${slides.length} slides`;
+  if (!slides.length) {
+    const p = document.createElement("p"); p.className = "empty";
+    p.textContent = "Paste lyrics on the left and the slides appear here.";
+    box.appendChild(p);
+  }
+  slides.forEach((s, i) => {
+    const wrap = document.createElement("div"); wrap.className = "slide";
+    const meta = document.createElement("div"); meta.className = "slide-meta";
+    const left = document.createElement("span"); left.innerHTML = `<span>#${i + 1}</span> <span class="sec"></span>`;
+    left.querySelector(".sec").textContent = s.section ? "\u00B7 " + s.section : "";
+    meta.appendChild(left);
+    const long = s.lines.some(l => l.length > LONG);
+    const right = document.createElement("span");
+    if (long) { right.className = "chip"; right.textContent = "Long line"; right.title = "Over 42 characters may wrap on the projector"; }
+    else right.textContent = `${s.lines.length} ln`;
+    meta.appendChild(right);
+    const scr = document.createElement("div"); scr.className = "screen";
+    s.lines.forEach(l => { const sp = document.createElement("span"); sp.textContent = l; scr.appendChild(sp); });
+    wrap.append(meta, scr); box.appendChild(wrap);
+  });
+  const numbered = $("fmt").value === "numbered", labels = $("labels").checked;
+  let lastSec = null;
+  out.value = slides.map((s, i) => {
+    const parts = [];
+    if (labels && s.section && s.section !== lastSec) parts.push(`[${s.section}]`);
+    lastSec = s.section;
+    if (numbered) parts.push(`SLIDE ${i + 1}`);
+    return parts.concat(s.lines).join("\n");
+  }).join("\n\n");
+}
+
+function fromRaw() { cleaned.value = clean(raw.value, $("unwrap").checked); render(); }
+
+function saveSettings() {
+  try { localStorage.setItem("fsf-settings", JSON.stringify({ max: $("maxLines").value, unwrap: $("unwrap").checked, longTwo: $("longTwo").checked, fmt: $("fmt").value, labels: $("labels").checked })); } catch (e) {}
+}
+try {
+  const s = JSON.parse(localStorage.getItem("fsf-settings") || "null");
+  if (s) { $("maxLines").value = s.max; $("unwrap").checked = s.unwrap; $("longTwo").checked = !!s.longTwo;$("fmt").value = s.fmt; $("labels").checked = s.labels; }
+} catch (e) {}
+
+raw.addEventListener("input", fromRaw);
+cleaned.addEventListener("input", render);
+$("unwrap").addEventListener("change", () => { saveSettings(); fromRaw(); });
+["maxLines", "longTwo", "fmt", "labels"].forEach(id => $(id).addEventListener("change", () => { saveSettings(); render(); }));
+$("clearBtn").addEventListener("click", () => { raw.value = ""; fromRaw(); raw.focus(); });
+$("copyBtn").addEventListener("click", () => {
+  const t = $("toast");
+  const done = () => { t.textContent = "Copied. Paste into FreeShow's text editor."; setTimeout(() => t.textContent = "", 3000); };
+  try {
+    navigator.clipboard.writeText(out.value).then(done, () => { out.select(); t.textContent = "Text selected. Press Ctrl+C (or \u2318C) to copy."; });
+  } catch (e) { out.select(); t.textContent = "Text selected. Press Ctrl+C (or \u2318C) to copy."; }
+});
+
+raw.value = SAMPLE;
+fromRaw();
+</script>
+
+</body></html>
